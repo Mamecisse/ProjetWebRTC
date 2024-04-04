@@ -5,18 +5,56 @@
 <title>Video Conference</title>
 </head>
 <body>
-    <div id="videoContainer">
-        <!-- Video streams of other participants will be displayed here -->
-    </div>
+   <video id="localVideo" autoplay muted style="width: 320px; height: 240px;"></video>
+    <div id="remoteVideos"></div>
     <div id="buttons">
-        <button id="joinButton">Join Conference</button>
-        <button id="leaveButton" style="display:none;">Leave Conference</button>
+        <button id="startButton">Start</button>
+        <button id="stopButton">Stop</button>
     </div>
-    <div id="messages">
-        <!-- Messages from other participants will be displayed here -->
-    </div>
+    <script>
+        var localVideo = document.getElementById('localVideo');
+        var remoteVideos = document.getElementById('remoteVideos');
+        var startButton = document.getElementById('startButton');
+        var stopButton = document.getElementById('stopButton');
+        var localStream;
+        var socket = io();
 
-    <script src="js/videoConference.js"></script>
+        startButton.onclick = function() {
+            navigator.mediaDevices.getUserMedia({audio:true, video:true})
+            .then(gotStream)
+            .catch(function(e) {
+                alert('getUserMedia() error: ' + e.name);
+            });
+        };
 
+        stopButton.onclick = function() {
+            localStream.getTracks().forEach(function(track) {
+                track.stop();
+            });
+            localVideo.srcObject = null;
+            socket.emit('stopStream');
+        };
+
+        function gotStream(stream) {
+            localVideo.srcObject = stream;
+            localStream = stream;
+            socket.emit('startStream');
+        }
+
+        socket.on('addRemoteStream', function(remoteStream) {
+            var video = document.createElement('video');
+            video.autoplay = 'autoplay';
+            video.srcObject = remoteStream;
+            remoteVideos.appendChild(video);
+        });
+
+        socket.on('removeRemoteStream', function() {
+            var videoElements = remoteVideos.getElementsByTagName('video');
+            if (videoElements.length > 0) {
+                remoteVideos.removeChild(videoElements[0]);
+            }
+        });
+        
+    </script>   
 </body>
 </html>
