@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>WebRTC Video Conference</title>
+</head>
+<body>
+    <video id="localVideo" autoplay muted style="width: 320px; height: 240px;"></video>
+    <div id="remoteVideos"></div>
+    <div id="buttons">
+        <button id="startButton">Start</button>
+        <button id="stopButton">Stop</button>
+    </div>
+    <script>
+        var localVideo = document.getElementById('localVideo');
+        var remoteVideos = document.getElementById('remoteVideos');
+        var startButton = document.getElementById('startButton');
+        var stopButton = document.getElementById('stopButton');
+        var localStream;
+        var peerConnection;
+        var peerConnectionConfig = {
+            'iceServers': [
+                {'urls': 'stun:stun.services.mozilla.com'},
+                {'urls': 'stun:stun.l.google.com:19302'}
+            ]
+        };
+
+        startButton.onclick = function() {
+            navigator.mediaDevices.getUserMedia({audio:true, video:true})
+            .then(gotStream)
+            .catch(function(e) {
+                alert('getUserMedia() error: ' + e.name);
+            });
+        };
+
+        stopButton.onclick = function() {
+            localStream.getTracks().forEach(function(track) {
+                track.stop();
+            });
+            localVideo.srcObject = null;
+            if (peerConnection) {
+                peerConnection.close();
+            }
+        };
+
+        function gotStream(stream) {
+            localVideo.srcObject = stream;
+            localStream = stream;
+            createPeerConnection();
+            peerConnection.addStream(localStream);
+            peerConnection.createOffer()
+            .then(createdDescription)
+            .catch(function(e) {
+                console.log('createOffer() error: ' + e.name);
+            });
+        }
+
+        function createdDescription(description) {
+            console.log('got description');
+            peerConnection.setLocalDescription(description)
+            .then(function() {
+                console.log('set local description');
+            })
+            .catch(function(e) {
+                console.log('setLocalDescription() error: ' + e.name);
+            });
+        }
+
+        function createPeerConnection() {
+            peerConnection = new RTCPeerConnection(peerConnectionConfig);
+            peerConnection.onicecandidate = gotIceCandidate;
+            peerConnection.onaddstream = gotRemoteStream;
+        }
+
+        function gotIceCandidate(event) {
+            if (event.candidate != null) {
+                console.log('got ice candidate');
+            }
+        }
+
+        function gotRemoteStream(event) {
+            var video = document.createElement('video');
+            video.autoplay = 'autoplay';
+            video.srcObject = event.stream;
+            remoteVideos.appendChild(video);
+        }
+    </script>
+</body>
+</html>
